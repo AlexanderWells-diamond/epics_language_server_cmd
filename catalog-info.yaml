@@ -1,0 +1,10 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: epics-cmd-language-server
+  title: epics-cmd-language-server
+  description: A Language Server for the EPICS CMD language
+spec:
+  type: application
+  lifecycle: experimental
+  owner: group:default/accelerator-controls

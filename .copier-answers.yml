@@ -1,0 +1,20 @@
+# Changes here will be overwritten by Copier
+_commit: 5.0.2
+_src_path: https://github.com/DiamondLightSource/python-copier-template.git
+author_email: alex.wells@diamond.ac.uk
+author_name: Alex Wells
+component_lifecycle: experimental
+component_owner: group:default/accelerator-controls
+component_type: application
+description: A Language Server for the EPICS CMD language
+distribution_name: epics-cmd-language-server
+docker: true
+docker_debug: true
+docs_type: README
+git_platform: github.com
+github_org: DiamondLightSource
+package_name: epics_cmd_language_server
+pypi: true
+repo_name: epics-cmd-language-server
+strict_typing: true
+type_checker: pyright
