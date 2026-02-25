@@ -12,7 +12,12 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 description = "A Language Server for the EPICS CMD language"
-dependencies = [] # Add project dependencies here, e.g. ["click", "numpy"]
+dependencies = [
+    "pygls",
+    "lsprotocol",
+    "tree-sitter",
+    "tree-sitter-epics-cmd",
+] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.md"
