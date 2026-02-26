@@ -7,11 +7,19 @@ from functools import reduce
 
 import tree_sitter_epics_cmd as tse
 from lsprotocol import types
-from lsprotocol.types import SemanticTokenModifiers, SemanticTokens, SemanticTokenTypes
+from lsprotocol.types import (
+    Diagnostic,
+    DiagnosticSeverity,
+    SemanticTokenModifiers,
+    SemanticTokens,
+    SemanticTokenTypes,
+)
 from pygls.cli import start_server
 from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
 from tree_sitter import Language, Parser, Point, Query, QueryCursor, Tree
+
+# from . import __version__
 
 # Declare the SemanticTokenTypes this server will provide
 # Note these must match the types used in HIGHLIGHTS_QUERY_MAPPING
@@ -74,28 +82,35 @@ class SemanticTokensServer(LanguageServer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tokens: dict[str, SemanticTokens] = {}
+        self.trees: dict[str, Tree] = {}
         self.lang = Language(tse.language())
         # TODO: Not sure if supposed to re-use parser in this way
         self.parser = Parser(self.lang)
+        self.diagnostics: dict[str, tuple[int | None, list[Diagnostic]]] = {}
 
-    def parse(self, doc: TextDocument):
-        """Convert the given document into a list of tokens"""
+    def parse(self, doc: TextDocument) -> Tree:
+        """Convert the given document into TreeParser Tree"""
         tree = self.lex(doc)
+        self.trees[doc.uri] = tree
 
-        tokens = self.create_tokens(tree)
+        self.create_diagnostics(tree, doc)
 
-        self.tokens[doc.uri] = tokens
+        return tree
 
-    def create_tokens(self, tree: Tree) -> SemanticTokens:
+    def create_tokens(self, doc: TextDocument) -> SemanticTokens:
         """Convert the TreeSitter token tree into the list of LSP tokens"""
+
+        try:
+            tree = self.trees[doc.uri]
+        except KeyError:
+            # No tree, re-parse document
+            tree = self.parse(doc)
 
         # Token data is just one long list, where each group of 5 ints represents one
         # token
         data: list[int] = []
 
-        lang = Language(tse.language())
-        query = Query(lang, tse.HIGHLIGHTS_QUERY)
-
+        query = Query(self.lang, tse.HIGHLIGHTS_QUERY)
         query_cursor = QueryCursor(query)
 
         # Note that the order of the matches is important; SemanticTokens line and
@@ -103,7 +118,6 @@ class SemanticTokensServer(LanguageServer):
         # .matches() rather than .captures() as the "captures" are unordered.
         matches = query_cursor.matches(tree.root_node)
 
-        # Keep track of the location of the previous Node, for offset calculations
         prev_point = Point(0, 0)
 
         # Matches are a list of tuples, where the first item is the index of the query
@@ -158,7 +172,10 @@ class SemanticTokensServer(LanguageServer):
                     ]
                 )
 
-        return SemanticTokens(data)
+        tokens = SemanticTokens(data)
+        self.tokens[doc.uri] = tokens
+
+        return tokens
 
     def lex(self, doc: TextDocument) -> Tree:
         """Convert the given document into a TreeSitter Tree"""
@@ -168,6 +185,92 @@ class SemanticTokensServer(LanguageServer):
         contents_bytes = b"".join(i.encode() for i in contents)
 
         return self.parser.parse(contents_bytes)
+
+    def create_diagnostics(self, tree: Tree, doc: TextDocument):
+        """Parse the syntax tree to identify any issues"""
+
+        diagnostics: list[Diagnostic] = []
+
+        # This parser does one of two things when it encounters a problem:
+        # 1. Create an ERROR node and continue parsing
+        # 2. Attempt to fix the error by inserting node(s) into the parsed tree.
+        # This query will find both of these cases
+        query_str = """
+(ERROR) @error-node
+(MISSING) @missing-node
+"""
+        query = Query(self.lang, query_str)
+        query_cursor = QueryCursor(query)
+
+        for k, v in query_cursor.captures(tree.root_node).items():
+            if k == "missing-node":
+                for node in v:
+                    next_node = node.next_sibling
+                    if next_node and next_node.type == "comment":
+                        # End of line comments are not advisable
+                        message = (
+                            "End of line comments are actually parameters to the "
+                            "function. They should not be used."
+                        )
+                        diagnostics.append(
+                            types.Diagnostic(
+                                message=message,
+                                severity=DiagnosticSeverity.Warning,
+                                range=types.Range(
+                                    start=types.Position(
+                                        line=next_node.start_point.row,
+                                        character=next_node.start_point.column,
+                                    ),
+                                    end=types.Position(
+                                        line=next_node.end_point.row,
+                                        character=next_node.end_point.column,
+                                    ),
+                                ),
+                            )
+                        )
+
+                    # This one appears to be a bug in the parser, see https://github.com/minijackson/tree-sitter-epics-cmd/issues/7
+                    if node.text == b"":
+                        pass
+
+            elif k == "error-node":
+                for node in v:
+                    if node.text == b"(":
+                        # Unclosed parenthesis error
+
+                        # There is a bug with the parser that makes this situation
+                        # difficult to deal with:
+                        # https://github.com/minijackson/tree-sitter-epics-cmd/issues/8
+                        # So for now we skip it
+                        # diagnostics.append(
+                        #     types.Diagnostic(
+                        #         message="Unclosed parenthesis",
+                        #         severity=DiagnosticSeverity.Error,
+                        #         range=err_range,
+                        #     )
+                        # )
+                        pass
+                    elif node.start_point.row != node.end_point.row:
+                        # We never expect multi-line tokens, so mark the whole length as
+                        # an error. This currently happens with unclosed quotes and
+                        # unclosed macro parenthesis
+                        diagnostics.append(
+                            types.Diagnostic(
+                                message="Unclosed quotations",
+                                severity=DiagnosticSeverity.Error,
+                                range=types.Range(
+                                    start=types.Position(
+                                        line=node.start_point.row,
+                                        character=node.start_point.column,
+                                    ),
+                                    end=types.Position(
+                                        line=node.start_point.row + 1, character=0
+                                    ),  # Marks until the end of the start row
+                                ),
+                            )
+                        )
+
+        self.diagnostics[doc.uri] = (doc.version, diagnostics)
 
 
 server = SemanticTokensServer("semantic-tokens-server", "v1")
@@ -179,12 +282,30 @@ def did_open(ls: SemanticTokensServer, params: types.DidOpenTextDocumentParams):
     doc = ls.workspace.get_text_document(params.text_document.uri)
     ls.parse(doc)
 
+    for uri, (version, diagnostics) in ls.diagnostics.items():
+        ls.text_document_publish_diagnostics(
+            types.PublishDiagnosticsParams(
+                uri=uri,
+                version=version,
+                diagnostics=diagnostics,
+            )
+        )
+
 
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
 def did_change(ls: SemanticTokensServer, params: types.DidOpenTextDocumentParams):
     """Parse each document when it is changed"""
     doc = ls.workspace.get_text_document(params.text_document.uri)
     ls.parse(doc)
+
+    for uri, (version, diagnostics) in ls.diagnostics.items():
+        ls.text_document_publish_diagnostics(
+            types.PublishDiagnosticsParams(
+                uri=uri,
+                version=version,
+                diagnostics=diagnostics,
+            )
+        )
 
 
 @server.feature(
@@ -196,7 +317,9 @@ def did_change(ls: SemanticTokensServer, params: types.DidOpenTextDocumentParams
 )
 def semantic_tokens_full(ls: SemanticTokensServer, params: types.SemanticTokensParams):
     """Return the semantic tokens for the entire document"""
-    tokens = ls.tokens.get(params.text_document.uri, SemanticTokens(data=[]))
+    # tokens = ls.tokens.get(params.text_document.uri, SemanticTokens(data=[]))
+    doc = ls.workspace.get_text_document(params.text_document.uri)
+    tokens = ls.create_tokens(doc)
 
     return tokens
 
