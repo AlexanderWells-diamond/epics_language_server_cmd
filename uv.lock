@@ -242,10 +242,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "lsprotocol" },
-    { name = "pygls" },
-    { name = "tree-sitter" },
-    { name = "tree-sitter-epics-cmd" },
+    { name = "lsprotocol", specifier = "~=2025.0.0" },
+    { name = "pygls", specifier = "~=2.0.1" },
+    { name = "tree-sitter", specifier = "~=0.25.2" },
+    { name = "tree-sitter-epics-cmd", specifier = "~=0.1.5" },
 ]
 
 [package.metadata.requires-dev]
