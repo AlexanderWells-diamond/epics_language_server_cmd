@@ -1,7 +1,6 @@
 import enum
 import logging
 import operator
-from argparse import ArgumentParser
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import reduce
@@ -13,8 +12,6 @@ from pygls.cli import start_server
 from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
 from tree_sitter import Language, Parser, Point, Query, QueryCursor, Tree
-
-from . import __version__
 
 # Declare the SemanticTokenTypes this server will provide
 # Note these must match the types used in HIGHLIGHTS_QUERY_MAPPING
@@ -209,14 +206,14 @@ __all__ = ["main"]
 
 def main(args: Sequence[str] | None = None) -> None:
     """Argument parser for the CLI."""
-    parser = ArgumentParser()
-    parser.add_argument(
-        "-v",
-        "--version",
-        action="version",
-        version=__version__,
-    )
-    parser.parse_args(args)
+    # parser = ArgumentParser()
+    # parser.add_argument(
+    #     "-v",
+    #     "--version",
+    #     action="version",
+    #     version=__version__,
+    # )
+    # parser.parse_args(args)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     start_server(server)
