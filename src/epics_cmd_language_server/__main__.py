@@ -85,6 +85,7 @@ class EpicsFunction:
     name: str
     help_str: str | None = None
     web_link: str | None = None
+    signature: types.SignatureInformation | None = None
 
 
 INBUILT_FUNCTIONS = [
@@ -120,6 +121,16 @@ This command prints the names of records in the run time database. If <record ty
 If <field list> is given and not empty then the values of the fields specified are also printed.
     """,  # noqa: E501
         web_link=IOC_DOCS_URL + "dbl",
+        signature=types.SignatureInformation(
+            label='dbl("<record type>","<field list>")',
+            documentation=(
+                "This command prints the names of records in the run time database.",
+            ),
+            parameters=[
+                types.ParameterInformation(label="record type"),
+                types.ParameterInformation(label="field list"),
+            ],
+        ),
     ),
     EpicsFunction("dbla", help_str=None, web_link=None),
     EpicsFunction("dblsr", help_str=None, web_link=None),
@@ -450,6 +461,32 @@ def hover(ls: LanguageServer, params: types.HoverParams):
             end=types.Position(line=pos.line + 1, character=0),
         ),
     )
+
+
+@server.feature(
+    types.TEXT_DOCUMENT_SIGNATURE_HELP,
+    types.SignatureHelpOptions(trigger_characters=["(", " "]),
+)
+def signature_help(
+    ls: LanguageServer, params: types.SignatureHelpParams
+) -> types.SignatureHelp | None:
+
+    pos = params.position
+    document_uri = params.text_document.uri
+    document = ls.workspace.get_text_document(document_uri)
+
+    try:
+        line = document.lines[pos.line]
+    except IndexError:
+        return None
+
+    for cmd in INBUILT_FUNCTIONS:
+        if cmd.name in line and cmd.signature:
+            return types.SignatureHelp(
+                signatures=[cmd.signature], active_signature=0, active_parameter=0
+            )
+
+    return None
 
 
 __all__ = ["main"]
