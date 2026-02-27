@@ -1,7 +1,7 @@
 import enum
 import logging
 import operator
-from collections.abc import Sequence
+from argparse import ArgumentParser
 from dataclasses import dataclass, field
 from functools import reduce
 
@@ -14,12 +14,11 @@ from lsprotocol.types import (
     SemanticTokens,
     SemanticTokenTypes,
 )
-from pygls.cli import start_server
 from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
 from tree_sitter import Language, Parser, Point, Query, QueryCursor, Tree
 
-# from . import __version__
+from . import __version__
 
 # Declare the SemanticTokenTypes this server will provide
 # Note these must match the types used in HIGHLIGHTS_QUERY_MAPPING
@@ -327,19 +326,40 @@ def semantic_tokens_full(ls: SemanticTokensServer, params: types.SemanticTokensP
 __all__ = ["main"]
 
 
-def main(args: Sequence[str] | None = None) -> None:
+def main() -> None:
     """Argument parser for the CLI."""
-    # parser = ArgumentParser()
-    # parser.add_argument(
-    #     "-v",
-    #     "--version",
-    #     action="version",
-    #     version=__version__,
-    # )
-    # parser.parse_args(args)
 
+    parser = ArgumentParser(description="Start an EPICS language server instance")
+
+    parser.add_argument(
+        "launch",
+        choices=["IO", "TCP", "WS"],
+        default="IO",
+        help="Define the launch method of the server",
+    )
+
+    parser.add_argument("--host", default="127.0.0.1", help="bind to this address")
+    parser.add_argument("--port", type=int, default=8888, help="bind to this port")
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=__version__,
+    )
+
+    arguments = parser.parse_args()
+
+    # TODO: Command line logging config
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    start_server(server)
+
+    if arguments.launch == "TCP":
+        server.start_tcp(arguments.host, arguments.port)
+    elif arguments.launch == "WS":
+        server.start_ws(arguments.host, arguments.port)
+    elif arguments.launch == "IO":
+        server.start_io()
+    else:
+        raise ValueError("Invalid launch type detected")
 
 
 if __name__ == "__main__":
