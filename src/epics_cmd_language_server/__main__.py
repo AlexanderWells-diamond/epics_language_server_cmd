@@ -421,6 +421,37 @@ def completions(ls: EpicsCmdLanguageServer, params: types.CompletionParams):
     return completions
 
 
+@server.feature(types.TEXT_DOCUMENT_HOVER)
+def hover(ls: LanguageServer, params: types.HoverParams):
+    pos = params.position
+    document_uri = params.text_document.uri
+    document = ls.workspace.get_text_document(document_uri)
+
+    try:
+        line = document.lines[pos.line]
+    except IndexError:
+        return None
+
+    hover_text: str | None = None
+    for cmd in INBUILT_FUNCTIONS:
+        if cmd.name in line:
+            hover_text = cmd.help_str
+
+    if not hover_text:
+        return
+
+    return types.Hover(
+        contents=types.MarkupContent(
+            kind=types.MarkupKind.Markdown,
+            value=hover_text,
+        ),
+        range=types.Range(
+            start=types.Position(line=pos.line, character=0),
+            end=types.Position(line=pos.line + 1, character=0),
+        ),
+    )
+
+
 __all__ = ["main"]
 
 
