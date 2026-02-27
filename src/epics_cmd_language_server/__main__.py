@@ -74,6 +74,90 @@ HIGHLIGHTS_QUERY_MAPPING = {
 }
 
 
+EPICS_DOCS_BASE_URL = "https://docs.epics-controls.org/en/latest/appdevguide"
+IOC_DOCS_URL = EPICS_DOCS_BASE_URL + "/" + "IOCTestFacilities.html#"
+
+
+@dataclass
+class EpicsFunction:
+    """Encapsulates all information about a particular inbuilt function"""
+
+    name: str
+    help_str: str | None = None
+    web_link: str | None = None
+
+
+INBUILT_FUNCTIONS = [
+    EpicsFunction("dbDumpDevice", help_str=None, web_link=None),
+    EpicsFunction("dbDumpDriver", help_str=None, web_link=None),
+    EpicsFunction("dbDumpField", help_str=None, web_link=None),
+    EpicsFunction("dbDumpFunction", help_str=None, web_link=None),
+    EpicsFunction("dbDumpMenu", help_str=None, web_link=None),
+    EpicsFunction("dbDumpPath", help_str=None, web_link=None),
+    EpicsFunction("dbDumpRecord", help_str=None, web_link=None),
+    EpicsFunction("dbDumpRecordType", help_str=None, web_link=None),
+    EpicsFunction("dbDumpRegistrar", help_str=None, web_link=None),
+    EpicsFunction("dbDumpVariable", help_str=None, web_link=None),
+    EpicsFunction("dbLoadDatabase", help_str=None, web_link=None),
+    EpicsFunction("dbLoadRecords", help_str=None, web_link=None),
+    EpicsFunction("dbLoadTemplate", help_str=None, web_link=None),
+    EpicsFunction("dba", help_str=None, web_link=None),
+    EpicsFunction("dbap", help_str=None, web_link=None),
+    EpicsFunction("dbb", help_str=None, web_link=None),
+    EpicsFunction("dbc", help_str=None, web_link=None),
+    EpicsFunction("dbcar", help_str=None, web_link=None),
+    EpicsFunction("dbd", help_str=None, web_link=None),
+    EpicsFunction("dbel", help_str=None, web_link=None),
+    EpicsFunction("dbgf", help_str=None, web_link=None),
+    EpicsFunction("dbgrep", help_str=None, web_link=None),
+    EpicsFunction("dbhcr", help_str=None, web_link=None),
+    EpicsFunction("dbior", help_str=None, web_link=None),
+    EpicsFunction(
+        "dbl",
+        help_str="""
+This command prints the names of records in the run time database. If <record type> is empty (""), "*", or not specified, all records are listed. If <record type> is specified, then only the names of the records of that type are listed.
+
+If <field list> is given and not empty then the values of the fields specified are also printed.
+    """,  # noqa: E501
+        web_link=IOC_DOCS_URL + "dbl",
+    ),
+    EpicsFunction("dbla", help_str=None, web_link=None),
+    EpicsFunction("dblsr", help_str=None, web_link=None),
+    EpicsFunction("dbnr", help_str=None, web_link=None),
+    EpicsFunction("dbp", help_str=None, web_link=None),
+    EpicsFunction("dbpf", help_str=None, web_link=None),
+    EpicsFunction("dbpr", help_str=None, web_link=None),
+    EpicsFunction("dbs", help_str=None, web_link=None),
+    EpicsFunction("dbsr", help_str=None, web_link=None),
+    EpicsFunction("dbstat", help_str=None, web_link=None),
+    EpicsFunction("dbtgf", help_str=None, web_link=None),
+    EpicsFunction("dbtpf", help_str=None, web_link=None),
+    EpicsFunction("dbtpn", help_str=None, web_link=None),
+    EpicsFunction("dbtr", help_str=None, web_link=None),
+    EpicsFunction("echo", help_str=None, web_link=None),
+    EpicsFunction("epicsEnvSet", help_str=None, web_link=None),
+    EpicsFunction("epicsEnvShow", help_str=None, web_link=None),
+    EpicsFunction("epicsEnvUnset", help_str=None, web_link=None),
+    EpicsFunction("errlog", help_str=None, web_link=None),
+    EpicsFunction("errlogInit", help_str=None, web_link=None),
+    EpicsFunction("errlogInit2", help_str=None, web_link=None),
+    EpicsFunction("help", help_str=None, web_link=None),
+    EpicsFunction("iocInit", help_str=None, web_link=None),
+    EpicsFunction("iocLogInit", help_str=None, web_link=None),
+    EpicsFunction("iocLogPrefix", help_str=None, web_link=None),
+    EpicsFunction("iocLogShow", help_str=None, web_link=None),
+    EpicsFunction("iocPause", help_str=None, web_link=None),
+    EpicsFunction("iocRun", help_str=None, web_link=None),
+    EpicsFunction("iocshCmd", help_str=None, web_link=None),
+    EpicsFunction("iocshLoad", help_str=None, web_link=None),
+    EpicsFunction("iocshRun", help_str=None, web_link=None),
+    EpicsFunction("pwd", help_str=None, web_link=None),
+    EpicsFunction("system", help_str=None, web_link=None),
+    EpicsFunction("traceIocInit", help_str=None, web_link=None),
+    EpicsFunction("var", help_str=None, web_link=None),
+]
+
+
 class EpicsCmdLanguageServer(LanguageServer):
     """Language server demonstrating the semantic token methods from the LSP
     specification."""
@@ -323,6 +407,18 @@ def semantic_tokens_full(
     tokens = ls.create_tokens(doc)
 
     return tokens
+
+
+@server.feature(
+    types.TEXT_DOCUMENT_COMPLETION,
+    types.CompletionOptions(),
+)
+def completions(ls: EpicsCmdLanguageServer, params: types.CompletionParams):
+    completions: list[types.CompletionItem] = []
+    for cmd in INBUILT_FUNCTIONS:
+        completions.append(types.CompletionItem(label=cmd.name))
+
+    return completions
 
 
 __all__ = ["main"]
