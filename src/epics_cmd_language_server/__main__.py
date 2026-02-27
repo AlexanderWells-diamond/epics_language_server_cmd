@@ -74,7 +74,7 @@ HIGHLIGHTS_QUERY_MAPPING = {
 }
 
 
-class SemanticTokensServer(LanguageServer):
+class EpicsCmdLanguageServer(LanguageServer):
     """Language server demonstrating the semantic token methods from the LSP
     specification."""
 
@@ -272,11 +272,11 @@ class SemanticTokensServer(LanguageServer):
         self.diagnostics[doc.uri] = (doc.version, diagnostics)
 
 
-server = SemanticTokensServer("semantic-tokens-server", "v1")
+server = EpicsCmdLanguageServer("EPICS-cmd-language-server", "v1")
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
-def did_open(ls: SemanticTokensServer, params: types.DidOpenTextDocumentParams):
+def did_open(ls: EpicsCmdLanguageServer, params: types.DidOpenTextDocumentParams):
     """Parse each document when it is opened"""
     doc = ls.workspace.get_text_document(params.text_document.uri)
     ls.parse(doc)
@@ -292,7 +292,7 @@ def did_open(ls: SemanticTokensServer, params: types.DidOpenTextDocumentParams):
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
-def did_change(ls: SemanticTokensServer, params: types.DidOpenTextDocumentParams):
+def did_change(ls: EpicsCmdLanguageServer, params: types.DidOpenTextDocumentParams):
     """Parse each document when it is changed"""
     doc = ls.workspace.get_text_document(params.text_document.uri)
     ls.parse(doc)
@@ -314,7 +314,9 @@ def did_change(ls: SemanticTokensServer, params: types.DidOpenTextDocumentParams
         token_modifiers=[m.name for m in TokenModifier],
     ),
 )
-def semantic_tokens_full(ls: SemanticTokensServer, params: types.SemanticTokensParams):
+def semantic_tokens_full(
+    ls: EpicsCmdLanguageServer, params: types.SemanticTokensParams
+):
     """Return the semantic tokens for the entire document"""
     # tokens = ls.tokens.get(params.text_document.uri, SemanticTokens(data=[]))
     doc = ls.workspace.get_text_document(params.text_document.uri)
